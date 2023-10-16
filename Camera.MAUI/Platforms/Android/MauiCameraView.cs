@@ -281,6 +281,7 @@ internal class MauiCameraView: GridLayout
 
                         StreamConfigurationMap map = (StreamConfigurationMap)camChars.Get(CameraCharacteristics.ScalerStreamConfigurationMap);
                         videoSize = ChooseVideoSize(map.GetOutputSizes(Class.FromType(typeof(ImageReader))));
+                        //videoSize = new Size(800, 600);
                         var maxVideoSize = ChooseMaxVideoSize(map.GetOutputSizes(Class.FromType(typeof(ImageReader))));
                         if (PhotosResolution.Width != 0 && PhotosResolution.Height != 0)
                             maxVideoSize = new((int)PhotosResolution.Width, (int)PhotosResolution.Height);
@@ -480,12 +481,18 @@ internal class MauiCameraView: GridLayout
             singleRequest.Set(CaptureRequest.JpegOrientation, rotation);
 
             var destZoom = Math.Clamp(cameraView.ZoomFactor, 1, Math.Min(6, cameraView.Camera.MaxZoomFactor)) - 1;
-            Rect m = (Rect)camChars.Get(CameraCharacteristics.SensorInfoActiveArraySize);
+            Rect m = (Rect)camChars.Get(CameraCharacteristics.SensorInfoActiveArraySize); // m = 4000 x 3000
             int minW = (int)(m.Width() / (cameraView.Camera.MaxZoomFactor));
             int minH = (int)(m.Height() / (cameraView.Camera.MaxZoomFactor));
             int newWidth = (int)(m.Width() - (minW * destZoom));
             int newHeight = (int)(m.Height() - (minH * destZoom));
-            Rect zoomArea = new((m.Width() - newWidth) / 2, (m.Height() - newHeight) / 2, newWidth, newHeight);
+            //Rect zoomArea = new((m.Width() - newWidth) / 2, (m.Height() - newHeight) / 2, newWidth, newHeight);
+            
+            // przy ratio 4:3 obraz na zdjęciu obejmował większy obszar niż podgląd
+            int newHeight_16x9 = (int)(m.Width() * 9/16);
+            Rect zoomArea = new((m.Width() - newWidth) / 2, (m.Height() - newHeight) / 2 + (newHeight - newHeight_16x9) / 2, newWidth, newHeight - (newHeight - newHeight_16x9) / 2);
+            //Rect zoomArea = new(0, 375, 4000, 2625);
+
             singleRequest.Set(CaptureRequest.ScalerCropRegion, zoomArea);
 
             singleRequest.AddTarget(imgReader.Surface);
@@ -879,7 +886,8 @@ internal class MauiCameraView: GridLayout
         {
             try
             {
-                var image = reader?.AcquireNextImage();
+                var image = reader?.AcquireLatestImage(); // w dokumentacji piszą, żeby używać tego zamiast NextImage()
+                //var image = reader?.AcquireNextImage();
                 if (image == null)
                     return;
 
